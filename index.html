@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="pt-PT">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" href="data:,">
+<title>Hello World · Meteorologia em Castelo Branco</title>
+<style>
+:root{--bg1:#0b1d3a;--bg2:#1b4f8a;--card:#ffffff14;--line:#ffffff24;--text:#f4f7fc;--muted:#b9c7de;--hot:#ffb15c;--cold:#7cc4ff;--rain:#6fd3ff}
+*{box-sizing:border-box}
+html,body{margin:0;min-height:100%}
+html{background:var(--bg2)}
+body{font:16px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;color:var(--text);background:linear-gradient(160deg,var(--bg1),var(--bg2));min-height:100vh}
+main{max-width:1100px;margin:0 auto;padding:clamp(28px,6vw,72px) clamp(16px,4vw,32px) 40px}
+h1{margin:0;font-size:clamp(48px,11vw,112px);line-height:1;letter-spacing:-2px;font-weight:800;background:linear-gradient(90deg,#fff,#9fd4ff);-webkit-background-clip:text;background-clip:text;color:transparent}
+.lead{color:var(--muted);margin:14px 0 36px;font-size:clamp(16px,2.2vw,19px)}
+h2{font-size:20px;margin:0 0 4px}
+.sub{color:var(--muted);font-size:14px;margin-bottom:18px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(138px,1fr));gap:12px}
+.day{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:14px 12px;text-align:center;backdrop-filter:blur(6px)}
+.day.today{border-color:#9fd4ff;box-shadow:0 0 0 1px #9fd4ff inset}
+.wd{font-weight:700}
+.dt{color:var(--muted);font-size:13px}
+.ico{font-size:42px;line-height:1;margin:10px 0 4px}
+.desc{font-size:13.5px;min-height:2.6em;color:#dfe8f6}
+.temp{font-size:20px;font-weight:700;margin:6px 0}
+.temp .max{color:var(--hot)}.temp .min{color:var(--cold);font-weight:600}
+.meta{font-size:13px;color:var(--muted);display:grid;gap:2px}
+.meta b{color:var(--text);font-weight:600}
+.state{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:22px;text-align:center;color:var(--muted)}
+.state.err{border-color:#ff8a8a;color:#ffd0d0}
+.state button{margin-top:12px;background:#ffffff1f;color:var(--text);border:1px solid var(--line);border-radius:10px;padding:8px 16px;font:inherit;cursor:pointer}
+.spin{display:inline-block;width:18px;height:18px;border:3px solid #ffffff40;border-top-color:#fff;border-radius:50%;animation:s 1s linear infinite;vertical-align:-4px;margin-right:8px}
+@keyframes s{to{transform:rotate(360deg)}}
+footer{margin-top:28px;color:var(--muted);font-size:12.5px}
+footer a{color:#9fd4ff}
+</style>
+</head>
+<body>
+<main>
+  <h1>Hello World</h1>
+  <p class="lead">Olá, mundo! 👋 E, já agora, o tempo para esta semana em Castelo Branco.</p>
+  <section aria-labelledby="ttl">
+    <h2 id="ttl">🌤️ Previsão a 7 dias · Castelo Branco, Portugal</h2>
+    <div class="sub" id="sub">39,82° N · 7,49° O · hora de Lisboa</div>
+    <div id="out"><div class="state"><span class="spin"></span>A carregar a previsão…</div></div>
+  </section>
+  <footer>Dados meteorológicos: <a href="https://open-meteo.com/" target="_blank" rel="noopener">Open-Meteo.com</a> (CC BY 4.0), obtidos no browser sem chave de API.</footer>
+</main>
+<script>
+"use strict";
+const API = "https://api.open-meteo.com/v1/forecast?latitude=39.82&longitude=-7.49" +
+  "&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max,precipitation_sum,wind_speed_10m_max,wind_direction_10m_dominant" +
+  "&timezone=Europe%2FLisbon&forecast_days=7";
+// códigos WMO → [ícone, descrição]
+const WMO = {
+  0: ["☀️", "Céu limpo"], 1: ["🌤️", "Pouco nublado"], 2: ["⛅", "Parcialmente nublado"], 3: ["☁️", "Nublado"],
+  45: ["🌫️", "Nevoeiro"], 48: ["🌫️", "Nevoeiro com geada"],
+  51: ["🌦️", "Chuvisco fraco"], 53: ["🌦️", "Chuvisco moderado"], 55: ["🌧️", "Chuvisco forte"],
+  56: ["🌧️", "Chuvisco gelado fraco"], 57: ["🌧️", "Chuvisco gelado forte"],
+  61: ["🌦️", "Chuva fraca"], 63: ["🌧️", "Chuva moderada"], 65: ["🌧️", "Chuva forte"],
+  66: ["🌧️", "Chuva gelada fraca"], 67: ["🌧️", "Chuva gelada forte"],
+  71: ["🌨️", "Neve fraca"], 73: ["🌨️", "Neve moderada"], 75: ["❄️", "Neve forte"], 77: ["🌨️", "Grãos de neve"],
+  80: ["🌦️", "Aguaceiros fracos"], 81: ["🌧️", "Aguaceiros moderados"], 82: ["⛈️", "Aguaceiros violentos"],
+  85: ["🌨️", "Aguaceiros de neve fracos"], 86: ["🌨️", "Aguaceiros de neve fortes"],
+  95: ["⛈️", "Trovoada"], 96: ["⛈️", "Trovoada com granizo"], 99: ["⛈️", "Trovoada com granizo forte"]
+};
+const DIRS = ["N", "NE", "E", "SE", "S", "SO", "O", "NO"];
+const MESES = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"];
+const nf = (x, d = 0) => x == null || Number.isNaN(x) ? "—" : Number(x).toLocaleString("pt-PT", { minimumFractionDigits: d, maximumFractionDigits: d });
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const out = document.getElementById("out");
+const todayLisbon = new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Lisbon" }).format(new Date());
+
+function render(j) {
+  const d = j.daily;
+  if (!d || !Array.isArray(d.time) || !d.time.length) throw new Error("Resposta sem dados diários");
+  out.innerHTML = `<div class="grid">${d.time.map((t, i) => {
+    const [y, m, dd] = t.split("-").map(Number), dt = new Date(Date.UTC(y, m - 1, dd, 12));
+    const wd = t === todayLisbon ? "Hoje" : dt.toLocaleDateString("pt-PT", { weekday: "long", timeZone: "UTC" }).replace(/^./, c => c.toUpperCase());
+    const [ico, desc] = WMO[d.weather_code[i]] || ["❔", `Código ${d.weather_code[i]}`];
+    const dir = d.wind_direction_10m_dominant?.[i];
+    return `<article class="day${t === todayLisbon ? " today" : ""}">
+      <div class="wd">${esc(wd)}</div>
+      <div class="dt">${dd} ${MESES[m - 1]}</div>
+      <div class="ico" role="img" aria-label="${esc(desc)}">${ico}</div>
+      <div class="desc">${esc(desc)}</div>
+      <div class="temp"><span class="max">${nf(d.temperature_2m_max[i])}°</span> / <span class="min">${nf(d.temperature_2m_min[i])}°</span></div>
+      <div class="meta">
+        <span title="Probabilidade de precipitação">💧 <b>${nf(d.precipitation_probability_max?.[i])}%</b> · ${nf(d.precipitation_sum?.[i], 1)} mm</span>
+        <span title="Vento máximo e direção dominante">💨 <b>${nf(d.wind_speed_10m_max?.[i])} km/h</b>${dir != null ? " " + DIRS[Math.round(dir / 45) % 8] : ""}</span>
+      </div>
+    </article>`;
+  }).join("")}</div>`;
+  document.getElementById("sub").textContent = `39,82° N · 7,49° O · ${nf(j.elevation)} m de altitude · hora de Lisboa · atualizado às ${new Date().toLocaleTimeString("pt-PT", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/Lisbon" })}`;
+}
+async function load() {
+  out.innerHTML = `<div class="state"><span class="spin"></span>A carregar a previsão…</div>`;
+  try {
+    const ctl = new AbortController(), to = setTimeout(() => ctl.abort(), 10000);
+    const r = await fetch(API, { signal: ctl.signal }); clearTimeout(to);
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    render(await r.json());
+  } catch (e) {
+    out.innerHTML = `<div class="state err">⚠️ Não foi possível obter a previsão do tempo.<br><small>${esc(e.name === "AbortError" ? "O pedido demorou demasiado." : e.message)}</small><br><button type="button" id="retry">Tentar novamente</button></div>`;
+    document.getElementById("retry").onclick = load;
+  }
+}
+load();
+</script>
+</body>
+</html>
